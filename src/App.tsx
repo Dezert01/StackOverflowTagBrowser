@@ -1,6 +1,6 @@
 import { api, mockData } from "./api";
 import { Input } from "./components/ui/input";
-import { TTag, TTagsRequest } from "./model";
+import { TTagsRequest } from "./model";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { z } from "zod";
 import {
@@ -106,6 +106,7 @@ function App() {
     setPageSize(values.pageSize);
   }
 
+  // uncomment if wanan use mock data
   // const getMockTags = (size: number, page: number) => {
   //   const data = { ...mockData };
   //   data.items = data.items.slice(page * size, (page + 1) * size);
@@ -115,8 +116,8 @@ function App() {
   // query
   const tagsQuery = useQuery({
     queryKey: ["tags", page, pageSize, sort, order],
-    queryFn: () => getTags(pageSize, page, sort, order),
-    // queryFn: () => getMockTags(pageSize, page),
+    queryFn: () => getTags(pageSize, page, sort, order), // comment if wanna use mock data
+    // queryFn: () => getMockTags(pageSize, page), // uncomment if wanna use mock data
     // placeholderData: keepPreviousData, // uncomment if wanna prevent flickering between fetching
   });
 
@@ -140,8 +141,6 @@ function App() {
     console.log(res);
     return res.data;
   };
-
-  // table
 
   return (
     <div className="container absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 overflow-hidden">
