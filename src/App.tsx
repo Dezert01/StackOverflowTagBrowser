@@ -1,12 +1,11 @@
-import { api } from "./api";
+import { api, mockData } from "./api";
 import { Input } from "./components/ui/input";
-import { TTagsRequest } from "./model";
+import { TTag, TTagsRequest } from "./model";
 import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
 import { z } from "zod";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -19,9 +18,7 @@ import {
 } from "@/components/ui/popover";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
@@ -30,6 +27,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Button } from "./components/ui/button";
 import { cn } from "./lib/utils";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const sortType = [
   {
@@ -38,7 +45,7 @@ const sortType = [
   },
   {
     label: "Popularity",
-    value: "popualar",
+    value: "popular",
   },
   {
     label: "Activity",
@@ -75,9 +82,15 @@ const formSchema = z.object({
 });
 
 function App() {
+  // states
   const [openSort, setOpenSort] = useState(false);
   const [openOrder, setOpenOrder] = useState(false);
+  const [page, setPage] = useState<number>(0);
+  const [sort, setSort] = useState<string>("name");
+  const [order, setOrder] = useState<string>("asc");
+  const [pageSize, setPageSize] = useState<number>(10);
 
+  // form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -88,21 +101,50 @@ function App() {
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    setSort(values.sort);
+    setOrder(values.order);
+    setPageSize(values.pageSize);
   }
 
-  // const getRooms = async () => {
-  //   const res = await api.get<TTagsRequest>(
-  //     "/tags?order=asc&sort=name&site=stackoverflow",
-  //   );
-  //   console.log(res);
-  //   return res.data;
+  // const getMockTags = (size: number, page: number) => {
+  //   const data = { ...mockData };
+  //   data.items = data.items.slice(page * size, (page + 1) * size);
+  //   return data;
   // };
 
-  // getRooms();
+  // query
+  const tagsQuery = useQuery({
+    queryKey: ["tags", page, pageSize, sort, order],
+    queryFn: () => getTags(pageSize, page, sort, order),
+    // queryFn: () => getMockTags(pageSize, page),
+    // placeholderData: keepPreviousData, // uncomment if wanna prevent flickering between fetching
+  });
+
+  const getTags = async (
+    pageSize: number,
+    page: number,
+    sort: string,
+    order: string,
+  ) => {
+    const res = await api.get<TTagsRequest>(
+      "/tags?page=" +
+        (page + 1) +
+        "&pagesize=" +
+        pageSize +
+        "&order=" +
+        order +
+        "&sort=" +
+        sort +
+        "&site=stackoverflow",
+    );
+    console.log(res);
+    return res.data;
+  };
+
+  // table
 
   return (
-    <div className="container mx-auto h-1/2 border-2 border-red-300">
+    <div className="container absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 overflow-hidden">
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
@@ -243,6 +285,54 @@ function App() {
           </Button>
         </form>
       </Form>
+
+      <div className="mx-auto my-4 flex max-h-[40rem] w-2/3 overflow-y-auto border-2">
+        <Table className="w-full ">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tag Name</TableHead>
+              <TableHead>Count</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tagsQuery.status === "pending" ? (
+              <TableRow>
+                <TableCell>Loading ...</TableCell>
+              </TableRow>
+            ) : tagsQuery.status === "error" ? (
+              <TableRow>
+                <TableCell className="text-red-600">
+                  Error: {tagsQuery.error.message}
+                </TableCell>
+              </TableRow>
+            ) : (
+              tagsQuery.data?.items.map((tag) => (
+                <TableRow>
+                  <TableCell>{tag.name}</TableCell>
+                  <TableCell>{tag.count}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex w-full items-center justify-center space-x-8 px-8">
+        <Button
+          onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+          disabled={page === 0}
+        >
+          Previous Page
+        </Button>
+        <span>Current Page: {page + 1}</span>
+        <Button
+          onClick={() =>
+            setPage((prev) => (tagsQuery.data?.has_more ? prev + 1 : prev))
+          }
+          disabled={!tagsQuery.data?.has_more}
+        >
+          Next Page
+        </Button>
+      </div>
     </div>
   );
 }

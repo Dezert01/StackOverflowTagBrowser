@@ -4,7 +4,7 @@ import { TTagsRequest } from "./model";
 
 const APP_TIMEOUT = 9_000;
 
-const mockData: TTagsRequest = {
+export const mockData: TTagsRequest = {
   items: [
     {
       has_synonyms: false,
